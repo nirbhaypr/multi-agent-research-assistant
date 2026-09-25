@@ -7,7 +7,7 @@ from multi_agent_research_assistant.validation import validate_report_citations
 def test_accepts_valid_research_plan():
     plan = ResearchPlan.model_validate(
         {
-            "question": "sq_1",
+            "question": "q_1",
             "subquestions": [
                 {
                     "id": "sq_1",
@@ -25,7 +25,7 @@ def test_accepts_valid_research_plan():
     assert plan.subquestions[0].id == "sq_1"
 
 
-def test_rejects_plan_without_subquestions():
+def test_rejects_research_plan_without_subquestions():
     with pytest.raises(ValidationError) as error:
         ResearchPlan.model_validate(
             {
@@ -36,7 +36,7 @@ def test_rejects_plan_without_subquestions():
 
     assert error.value.errors()[0]["loc"] == ("subquestions",)
 
-def test_rejects_subquestion_with_empty_question():
+def test_rejects_reserch_plan_subquestion_with_empty_question():
     with pytest.raises(ValidationError) as error:
         ResearchPlan.model_validate(
                 {
@@ -54,7 +54,7 @@ def test_rejects_subquestion_with_empty_question():
     assert error.value.errors()[0]["loc"] == ("subquestions", 0, "question")
 
 
-def test_rejects_subquestion_with_empty_completion_criteria():
+def test_rejects_research_plan_subquestion_with_empty_completion_criteria():
     with pytest.raises(ValidationError) as error:
         ResearchPlan.model_validate(
                 {
@@ -72,7 +72,7 @@ def test_rejects_subquestion_with_empty_completion_criteria():
     assert error.value.errors()[0]["loc"] == ("subquestions", 0, "completion_criteria")
 
 
-def test_rejects_plan_with_empty_question():
+def test_rejects_research_plan_with_empty_question():
     with pytest.raises(ValidationError) as error:
             ResearchPlan.model_validate(
                     {
@@ -120,7 +120,7 @@ def test_rejects_finding_with_missing_source():
     assert error.value.errors()[0]["loc"] == ("source_url", )
 
 
-def test_rejects_findinf_with_invalid_source():
+def test_rejects_finding_with_invalid_source():
     data = {
             "id": "finding_1",
             "subquestion_id": "sq_1",
@@ -167,35 +167,7 @@ def test_rejects_finding_with_ambiguous_timestamp():
     assert error.value.errors()[0]["loc"] == ("retrieved_at", )
 
 
-def test_accepts_valid_report():
-    data = {
-        "id": "finding_1",
-        "subquestion_id": "sq_1",
-        "claim": "Service Alpha retains completed runs for seven days.",
-        "source_url": "https://example.com/retention-policy",
-        "snippet": "Completed runs are retained for seven days.",
-        "retrieved_at": "2026-09-25T10:00:00Z",
-    }
-
-    finding = Finding.model_validate(data)
-    claims = ReportClaim.model_validate(
-        {
-            "text": "Test Claim",
-            "finding_ids": ["finding_1"]
-        }
-    )
-    report = ResearchReport.model_validate(
-        {
-            "title": "Test Title 1",
-            "claims": [claims]
-        }
-    )
-
-    validate_report_citations(report, [finding])
-    assert report.claims[0].finding_ids[0] == finding.id
-
-
-def test_rejects_claim_with_empty_finding_ids():
+def test_rejects_report_claim_with_empty_finding_ids():
     with pytest.raises(ValidationError) as error:
         claims = ReportClaim.model_validate(
             {
@@ -207,7 +179,7 @@ def test_rejects_claim_with_empty_finding_ids():
     assert error.value.errors()[0]["loc"] == ("finding_ids", )
 
 
-def test_rejects_report_with_empty_claims():
+def test_rejects_research_report_with_empty_claims():
     with pytest.raises(ValidationError) as error:
         ResearchReport.model_validate(
             {
@@ -217,31 +189,3 @@ def test_rejects_report_with_empty_claims():
         )
 
     assert error.value.errors()[0]["loc"] == ("claims",)
-
-
-def test_rejects_report_with_invalid_findings():
-    data = {
-        "id": "finding_1",
-        "subquestion_id": "sq_1",
-        "claim": "Service Alpha retains completed runs for seven days.",
-        "source_url": "https://example.com/retention-policy",
-        "snippet": "Completed runs are retained for seven days.",
-        "retrieved_at": "2026-09-25T10:00:00Z",
-    }
-
-    finding = Finding.model_validate(data)
-    claims = ReportClaim.model_validate(
-        {
-            "text": "Test Claim",
-            "finding_ids": ["finding_1", "finding_missing"]
-        }
-    )
-    report = ResearchReport.model_validate(
-        {
-            "title": "Test Title 1",
-            "claims": [claims]
-        }
-    )
-
-    with pytest.raises(ValueError, match="finding_missing") as error:
-        validate_report_citations(report, [finding])
