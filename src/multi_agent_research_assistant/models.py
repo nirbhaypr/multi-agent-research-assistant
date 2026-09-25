@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict, AwareDatetime, HttpUrl
+from typing import Literal
 
 class SubQuestion(BaseModel):
     model_config = ConfigDict(
@@ -76,6 +77,22 @@ class ResearchReport(BaseModel):
 
     title: str = Field(min_length=1)
     claims: list[ReportClaim] = Field(min_length=1)
+
+class ResearchDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    findings: list[FindingDraft]
+
+
+class ResearchResult(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
+    subquestion_id: str = Field(min_length=1)
+    status: Literal["findings_found", "no_evidence"]
+    findings: list[Finding]
 
 
 class TokenUsage(BaseModel):
