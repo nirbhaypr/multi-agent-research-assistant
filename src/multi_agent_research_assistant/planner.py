@@ -1,7 +1,8 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from collections.abc import Callable
 
-from .models import ResearchPlan
+from .models import ResearchPlan, TokenUsage
 from .validation import validate_research_plan
 
 
@@ -10,6 +11,7 @@ def create_plan(
         *,
         llm: ChatOpenAI,
         max_subquestions: int = 3,
+        record_usage: Callable[[TokenUsage | None], None] | None = None
 ) -> ResearchPlan:
     question = question.strip()
 
@@ -42,12 +44,32 @@ def create_plan(
         include_raw=True
     )
 
-    response = structured_llm.invoke(
-        [
-            instructions,
-            query
-        ]
-    )
+    try:
+        response = structured_llm.invoke(
+            [
+                instructions,
+                query
+            ]
+        )
+
+        reported_usage = response["raw"].usage_metadata
+
+        usage = None
+
+        if reported_usage is not None:
+            usage = TokenUsage(
+                input_tokens=reported_usage["input_tokens"],
+                output_tokens=reported_usage["output_tokens"],
+                total_tokens=reported_usage["total_tokens"],
+            )
+
+    except Exception:
+        if record_usage is not None:
+            record_usage(None)
+        raise
+
+    if record_usage is not None:
+        record_usage(usage)
 
     metadata = response["raw"].response_metadata
 

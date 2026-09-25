@@ -53,3 +53,14 @@ class ResearchReport(BaseModel):
 
     title: str = Field(min_length=1)
     claims: list[ReportClaim] = Field(min_length=1)
+
+
+class TokenUsage(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        strict=True,
+    )
+
+    input_tokens: int = Field(ge=0)
+    output_tokens: int = Field(ge=0)
+    total_tokens: int = Field(ge=0)
