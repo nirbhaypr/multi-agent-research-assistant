@@ -105,7 +105,7 @@ def test_rejects_generated_plan_with_parsed_none():
         "parsing_error": None,
     }
 
-    with pytest.raises(RuntimeError, match="no parsed plan"):
+    with pytest.raises(RuntimeError, match="no parsed output"):
         result = create_plan(question, llm=llm)
 
 

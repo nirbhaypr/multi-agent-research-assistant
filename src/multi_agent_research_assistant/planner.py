@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from .models import ResearchPlan, TokenUsage
 from .validation import validate_research_plan
+from .model_calls import invoke_structured
 
 
 def create_plan(
@@ -37,63 +38,17 @@ def create_plan(
     )
     query = HumanMessage(content=question)
 
-    structured_llm = llm.with_structured_output(
-        ResearchPlan,
-        method="json_schema",
-        strict=True,
-        include_raw=True
+    plan = invoke_structured(
+        llm=llm,
+        schema=ResearchPlan,
+        messages=[instructions, query],
+        record_usage=record_usage,
     )
-
-    try:
-        response = structured_llm.invoke(
-            [
-                instructions,
-                query
-            ]
-        )
-
-        reported_usage = response["raw"].usage_metadata
-
-        usage = None
-
-        if reported_usage is not None:
-            usage = TokenUsage(
-                input_tokens=reported_usage["input_tokens"],
-                output_tokens=reported_usage["output_tokens"],
-                total_tokens=reported_usage["total_tokens"],
-            )
-
-    except Exception:
-        if record_usage is not None:
-            record_usage(None)
-        raise
-
-    if record_usage is not None:
-        record_usage(usage)
-
-    metadata = response["raw"].response_metadata
-
-    if metadata.get("status") not in (None, "completed"):
-        raise RuntimeError("Planner response was not completed")
-
-    if metadata.get("finish_reason") in ("length", "content_filter"):
-        raise RuntimeError("Planner response was not completed")
-
-    if response["parsing_error"] is not None:
-        raise RuntimeError(
-            "Planner output could not be parsed"
-        ) from response["parsing_error"]
-
-    plan = response["parsed"]
-
-    if plan is None:
-        raise RuntimeError("Planner returned no parsed plan")
 
     validate_research_plan(
         plan,
         question=question,
-        max_subquestions=max_subquestions
+        max_subquestions=max_subquestions,
     )
 
     return plan
-    
