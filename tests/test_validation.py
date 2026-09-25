@@ -1,5 +1,6 @@
 import pytest
-from pydantic import ValidationError
+
+
 from multi_agent_research_assistant.models import ResearchPlan, Finding, ReportClaim, ResearchReport
 from multi_agent_research_assistant.validation import validate_report_citations, validate_research_plan
 
@@ -176,7 +177,7 @@ def test_rejects_research_plan_with_invalid_configuration():
             )   
 
     with pytest.raises(ValueError, match="at least 1"):
-            validate_research_plan(plan, question="q_2", max_subquestions=0)
+            validate_research_plan(plan, question="q_1", max_subquestions=0)
 
     
 
