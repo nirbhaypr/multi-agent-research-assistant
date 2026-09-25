@@ -21,6 +21,29 @@ class ResearchPlan(BaseModel):
     subquestions: list[SubQuestion] = Field(min_length=1)
 
 
+class SourceDocument(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
+    id: str = Field(min_length=1)
+    url: HttpUrl
+    text: str = Field(min_length=1)
+    retrieved_at: AwareDatetime
+
+
+class FindingDraft(BaseModel):
+    model_config = ConfigDict(
+            extra="forbid",
+            str_strip_whitespace=True,
+        )
+
+    source_id: str = Field(min_length=1)
+    claim: str = Field(min_length=1)
+    snippet: str = Field(min_length=1)
+
+
 class Finding(BaseModel):
     model_config = ConfigDict(
                 extra="forbid",
