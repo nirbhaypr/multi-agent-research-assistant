@@ -128,3 +128,12 @@ class ReviewDecision(BaseModel):
         "revision_limit_reached",
         "retry_budget_unavailable",
     ]
+
+
+class TokenBudgetState(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    max_total_tokens: int = Field(gt=0)
+    recorded_tokens: int = Field(default=0, ge=0)
+    reserved_tokens: int = Field(default=0, ge=0)
+    blocked_reason: Literal["usage_unknown", "reservation_exceeded"] | None = None
