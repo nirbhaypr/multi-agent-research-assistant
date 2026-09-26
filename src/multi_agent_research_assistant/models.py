@@ -116,3 +116,15 @@ class ResearchReview(BaseModel):
     accepted_finding_ids: list[str]
     gaps: list[Annotated[str, Field(min_length=1)]]
     reason: str = Field(min_length=1)
+
+
+class ReviewDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["accept", "revise", "finish_incomplete"]
+    reason: Literal[
+        "evidence_sufficient",
+        "revision_allowed",
+        "revision_limit_reached",
+        "retry_budget_unavailable",
+    ]
