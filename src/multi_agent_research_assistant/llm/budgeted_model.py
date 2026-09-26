@@ -1,3 +1,4 @@
+import time
 from collections.abc import Callable
 
 from langchain_core.messages import BaseMessage
@@ -24,11 +25,15 @@ class BudgetedModel:
         model: str,
         budget: TokenBudgetState,
         max_output_tokens: int = 2000,
+        deadline: float | None = None,
+        on_budget: Callable[[TokenBudgetState], None] | None = None,
     ) -> None:
         if type(max_output_tokens) is not int or max_output_tokens <= 0:
             raise ValueError("max_output_tokens must be a positive integer")
 
         self._budget = budget
+        self._deadline = deadline
+        self._on_budget = on_budget
         self._max_output_tokens = max_output_tokens
         self._client = client.with_options(max_retries=0, timeout=30.0)
 
@@ -45,6 +50,18 @@ class BudgetedModel:
             timeout=30.0,
         )
 
+    def _check_deadline(self) -> None:
+        remaining = 30.0 if self._deadline is None else self._deadline - time.time()
+        if remaining <= 0:
+            raise TimeoutError("Run deadline exceeded")
+        self._client = self._client.with_options(timeout=min(30.0, remaining))
+        self._llm.root_client = self._client
+        self._llm.client = self._client.chat.completions
+
+    def _publish_budget(self) -> None:
+        if self._on_budget is not None:
+            self._on_budget(self._budget)
+
     @property
     def budget(self) -> TokenBudgetState:
         return self._budget
@@ -60,6 +77,7 @@ class BudgetedModel:
         # reserve_tokens returns a new state; this does not change our ledger.
         reserve_tokens(self._budget, tokens=self._max_output_tokens)
 
+        self._check_deadline()
         input_tokens = count_structured_input(
             client=self._client,
             model=self._llm.model_name,
@@ -67,6 +85,7 @@ class BudgetedModel:
             messages=messages,
         )
 
+        self._check_deadline()
         self._budget = reserve_tokens(
             self._budget,
             tokens=input_tokens + self._max_output_tokens,
@@ -74,11 +93,13 @@ class BudgetedModel:
 
         def settle_usage(usage: TokenUsage | None) -> None:
             self._budget = settle_tokens(self._budget, usage)
+            self._publish_budget()
 
             if record_usage is not None:
                 record_usage(usage)
 
         try:
+            self._publish_budget()
             return invoke_structured(
                 llm=self._llm,
                 schema=schema,
@@ -89,3 +110,4 @@ class BudgetedModel:
             # Covers failures that occur before the usage callback runs.
             if self._budget.reserved_tokens:
                 self._budget = settle_tokens(self._budget, None)
+                self._publish_budget()
