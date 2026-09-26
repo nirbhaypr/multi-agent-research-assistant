@@ -94,7 +94,9 @@ def create_app(settings: Settings | None = None, store=None) -> FastAPI:
                 body.limits,
                 idempotency_key,
                 mode=settings.research_mode,
-                model_name=settings.openai_model,
+                model_name="synthetic-fixture"
+                if settings.research_mode == "demo"
+                else settings.openai_model,
                 max_pending=settings.max_pending_runs,
             )
         except IdempotencyConflict as exc:
@@ -129,10 +131,14 @@ def create_app(settings: Settings | None = None, store=None) -> FastAPI:
             "progress": {
                 "next_node": run.next_node,
                 "completed_steps": run.step,
-                "completed_subquestions": run.index,
+                "processed_subquestions": run.index,
+                "completed_subquestions": sum(
+                    r.status == "sufficient" for r in run.reviews.values()
+                ),
                 "planned_subquestions": len(run.plan.subquestions) if run.plan else 0,
             },
             "budget": run.budget,
+            "usage_complete": run.budget.blocked_reason != "usage_unknown",
             "searches": run.searches,
             "revisions_used": run.revisions_used,
             "report": run.report,

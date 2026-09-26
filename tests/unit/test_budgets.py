@@ -139,3 +139,10 @@ def test_rejects_nonpositive_reservation(tokens):
 
     with pytest.raises(ValueError, match="tokens must be positive"):
         reserve_tokens(budget, tokens=tokens)
+
+
+def test_inconsistent_provider_usage_cannot_understate_spending():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="total_tokens must equal"):
+        TokenUsage(input_tokens=100, output_tokens=40, total_tokens=0)

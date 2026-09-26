@@ -44,7 +44,7 @@ def execute_run(settings: Settings, run_id: str, token: str):
                         output_cap=run.limits.max_output_tokens,
                     )
             else:
-                settings.require_providers()
+                settings.require_providers(run.mode)
                 client = stack.enter_context(
                     OpenAI(
                         api_key=settings.openai_api_key.get_secret_value(),

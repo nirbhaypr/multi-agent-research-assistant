@@ -39,6 +39,7 @@ class BudgetedModel:
 
         self._llm = ChatOpenAI(
             model=model,
+            cache=False,
             api_key=self._client.api_key,
             base_url=str(self._client.base_url),
             client=self._client.chat.completions,

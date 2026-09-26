@@ -4,6 +4,7 @@ import argparse
 import json
 import multiprocessing
 import signal
+import threading
 import time
 from datetime import UTC, datetime
 
@@ -62,6 +63,8 @@ def work_once(settings: Settings) -> bool:
             if token is None:
                 continue
             process = None
+            deadline_timer = None
+            deadline_expired = threading.Event()
             try:
                 if time.time() >= run.deadline:
                     stop_run(store, run_id, token, "deadline")
@@ -70,6 +73,20 @@ def work_once(settings: Settings) -> bool:
                     target=execute_run, args=(settings, run_id, token), daemon=True
                 )
                 process.start()
+
+                def enforce_deadline():
+                    deadline_expired.set()
+                    try:
+                        if process.is_alive():
+                            process.kill()
+                    except ProcessLookupError:
+                        pass
+
+                deadline_timer = threading.Timer(
+                    max(0, run.deadline - time.time()), enforce_deadline
+                )
+                deadline_timer.daemon = True
+                deadline_timer.start()
                 while process.is_alive():
                     remaining = run.deadline - time.time()
                     if remaining <= 0:
@@ -82,6 +99,9 @@ def work_once(settings: Settings) -> bool:
                         return True
                     process.join(min(1.0, remaining))
                     store.renew(run_id, token, settings.lease_seconds)
+                if deadline_expired.is_set() or time.time() >= run.deadline:
+                    stop_run(store, run_id, token, "deadline")
+                    return True
                 current = store.get(run_id)
                 if current and not current.terminal:
                     # Retry startup failures only; journal prevents replay of external calls.
@@ -98,6 +118,8 @@ def work_once(settings: Settings) -> bool:
                     process.join(0.5)
                 return True
             finally:
+                if deadline_timer:
+                    deadline_timer.cancel()
                 if process and process.is_alive():
                     process.terminate()
                     process.join(0.5)
@@ -107,12 +129,12 @@ def work_once(settings: Settings) -> bool:
         store.redis.close()
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--once", action="store_true", help="Process one available run, then exit."
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     settings = Settings()
     settings.require_providers()
 

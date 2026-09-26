@@ -77,7 +77,12 @@ class TavilyRetriever:
             )
             response.raise_for_status()
             data = response.json()
-            if not isinstance(data, dict):
+            if (
+                not isinstance(data, dict)
+                or not isinstance(data.get("results", []), list)
+                or not all(isinstance(item, dict) for item in data.get("results", []))
+                or not isinstance(data.get("failed_results", []), list)
+            ):
                 raise ValueError("Invalid provider response")
             trace["output"] = {
                 "status": "completed",

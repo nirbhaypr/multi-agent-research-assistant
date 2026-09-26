@@ -1,11 +1,13 @@
 """Run with TEST_REDIS_URL=redis://localhost:6397/0."""
 
 import os
+import socket
 import subprocess
 import sys
 import time
 from uuid import uuid4
 
+import httpx
 import pytest
 from redis import Redis
 
@@ -134,3 +136,56 @@ def test_parent_enforces_wall_clock_even_when_child_hangs(settings, monkeypatch)
     assert time.monotonic() - started < 3
     assert store.get(run.run_id).status == "timed_out"
     assert store.traces(run.run_id)[-1]["error"] == "deadline"
+
+
+def test_real_http_api_and_worker_return_report_and_trace(settings):
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    env = {
+        **os.environ,
+        "REDIS_URL": settings.redis_url,
+        "REDIS_PREFIX": settings.redis_prefix,
+        "RESEARCH_MODE": "demo",
+        "API_TOKEN": "",
+    }
+    server = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "multi_agent_research_assistant.api.app:create_app",
+            "--factory",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--log-level",
+            "error",
+        ],
+        env=env,
+    )
+    try:
+        with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=5) as client:
+            end = time.monotonic() + 10
+            while True:
+                try:
+                    if client.get("/health").status_code == 200:
+                        break
+                except httpx.ConnectError:
+                    pass
+                assert server.poll() is None and time.monotonic() < end
+                time.sleep(0.05)
+            response = client.post("/research", json={"question": "retention?"})
+            assert response.status_code == 202
+            run_id = response.json()["run_id"]
+            assert work_once(settings)
+            result = client.get(f"/research/{run_id}").json()
+            assert result["status"] == "completed"
+            assert result["mode"] == "demo"
+            assert len(result["citations"]) == 2
+            assert len(client.get(f"/research/{run_id}/trace").json()["steps"]) == 7
+            assert "event: done" in client.get(f"/research/{run_id}/events").text
+    finally:
+        server.terminate()
+        server.wait(timeout=5)

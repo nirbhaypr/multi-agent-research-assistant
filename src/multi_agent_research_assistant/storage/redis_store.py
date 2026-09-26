@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from redis import Redis, WatchError
 
+from multi_agent_research_assistant.domain.models import TokenBudgetState
 from multi_agent_research_assistant.domain.runs import RunLimits, RunState
 
 
@@ -145,15 +146,6 @@ class RedisRunStore:
             for v in self.redis.lrange(self.key(run_id, "trace"), start, -1)
         ]
 
-    def save_terminal(self, run: RunState, token: str):
-        def commands(pipe):
-            pipe.set(
-                self.key(run.run_id, "state"), run.model_dump_json(), ex=self.retention
-            )
-            pipe.zrem(f"{self.prefix}:pending", run.run_id)
-
-        self.fenced(run.run_id, token, commands)
-
 
 class RedisJournal:
     def __init__(self, store: RedisRunStore, run_id: str, token: str):
@@ -165,7 +157,19 @@ class RedisJournal:
         return json.loads(data) if data else None
 
     def _save(self, step_id, value):
+        run = self.store.get(self.run_id)
+        if run is not None:
+            run.budget = TokenBudgetState.model_validate(value["budget"])
+            if not run.terminal:
+                run.status = "running"
+
         def commands(pipe):
+            if run is not None:
+                pipe.set(
+                    self.store.key(self.run_id, "state"),
+                    run.model_dump_json(),
+                    ex=self.store.retention,
+                )
             pipe.hset(self.ops, step_id, json.dumps(value))
             pipe.expire(self.ops, self.store.retention)
 

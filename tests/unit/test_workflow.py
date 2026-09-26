@@ -115,3 +115,16 @@ def test_langgraph_resumes_checkpoint_without_replaying_planner():
     result = RunState.model_validate(graph.invoke(None, config)["run"])
     assert result.status == "completed"
     assert calls.count("ResearchPlan") == 1
+
+
+def test_trace_contains_prompt_schema_parsed_output_and_usage():
+    workflow, run, journal, calls = setup_run()
+    workflow.build().invoke({"run": run.model_dump(mode="json")})
+    events = journal.records["000:planner"]["trace"]["tool_calls"]
+    event = next(e for e in events if e["tool"] == "structured_model_call")
+    assert events[0]["output"]["reserved_tokens"] == 2100
+    assert event["input"]["messages"][0]["role"] == "system"
+    assert "subquestions" in event["input"]["schema"]["properties"]
+    assert event["output"]["parsed"]["question"] == run.question
+    assert event["usage"][0]["total_tokens"] == 140
+    assert event["latency_ms"] >= 0

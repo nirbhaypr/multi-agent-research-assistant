@@ -79,3 +79,15 @@ def test_redis_checkpoint_resumes_with_new_graph_and_no_duplicate_calls():
     assert len(db.traces(run.run_id)) == 7
     saver = RedisCheckpointer(db, run.run_id, token)
     assert len(list(saver.list(config))) >= 7
+
+
+def test_inflight_budget_is_visible_to_status_readers():
+    db = store()
+    run, _ = db.enqueue("retention", RunLimits())
+    token = db.claim(run.run_id)
+    journal = RedisJournal(db, run.run_id, token)
+    journal.begin("000:planner", {}, run.budget.model_dump())
+    assert db.get(run.run_id).status == "running"
+    reserved = run.budget.model_copy(update={"reserved_tokens": 2100})
+    journal.budget("000:planner", reserved.model_dump())
+    assert db.get(run.run_id).budget.reserved_tokens == 2100

@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     retention_seconds: int = Field(default=604800, ge=3600)
     lease_seconds: int = Field(default=15, ge=5, le=120)
 
-    def require_providers(self):
-        if self.research_mode == "live" and (
+    def require_providers(self, mode=None):
+        if (mode or self.research_mode) == "live" and (
             not self.openai_api_key or not self.tavily_api_key
         ):
             raise ValueError("Live mode requires OPENAI_API_KEY and TAVILY_API_KEY")

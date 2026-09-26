@@ -21,6 +21,7 @@ from multi_agent_research_assistant.domain.runs import (
     StepTrace,
 )
 from multi_agent_research_assistant.domain.validation import validate_report_citations
+from multi_agent_research_assistant.llm.tracing import TracedModel
 from multi_agent_research_assistant.orchestration.budgets import (
     BudgetBlocked,
     settle_tokens,
@@ -146,9 +147,16 @@ class ResearchWorkflow:
 
                 def update_budget(budget):
                     run.budget = budget
+                    tools.append(
+                        {"tool": "token_budget", "output": budget.model_dump()}
+                    )
                     self.journal.budget(step_id, budget.model_dump())
 
-                model = self.model_factory(run.budget, run.deadline, update_budget)
+                model = TracedModel(
+                    self.model_factory(run.budget, run.deadline, update_budget),
+                    tools,
+                    run.model_name,
+                )
                 try:
                     if name != "finish" and time.time() >= run.deadline:
                         raise TimeoutError("Run deadline exceeded")
@@ -268,7 +276,20 @@ class ResearchWorkflow:
             result = research_subquestion(
                 sq, run.sources, model=model, record_usage=record
             )
-            run.findings.extend(result.findings)
+            known = {
+                (f.subquestion_id, str(f.source_url), f.claim, f.snippet)
+                for f in run.findings
+            }
+            for finding in result.findings:
+                key = (
+                    finding.subquestion_id,
+                    str(finding.source_url),
+                    finding.claim,
+                    finding.snippet,
+                )
+                if key not in known:
+                    run.findings.append(finding)
+                    known.add(key)
             run.next_node = "reviewer"
             return result.model_dump(mode="json")
         if name == "reviewer":
