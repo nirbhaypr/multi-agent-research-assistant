@@ -18,6 +18,10 @@ class IdempotencyConflict(ValueError):
     pass
 
 
+class QueueFull(RuntimeError):
+    pass
+
+
 class RedisRunStore:
     def __init__(self, redis: Redis, *, prefix="research:v1", retention_seconds=604800):
         self.redis, self.prefix, self.retention = redis, prefix, retention_seconds
@@ -33,6 +37,7 @@ class RedisRunStore:
         *,
         mode: str = "live",
         model_name: str = "gpt-5.4-mini",
+        max_pending: int | None = None,
     ):
         digest = hashlib.sha256(
             json.dumps(
@@ -59,6 +64,10 @@ class RedisRunStore:
                             existing = self.get(value["run_id"])
                             if existing:
                                 return existing, False
+                    if max_pending is not None:
+                        pipe.watch(f"{self.prefix}:pending")
+                        if pipe.zcard(f"{self.prefix}:pending") >= max_pending:
+                            raise QueueFull("Research queue is full")
                     run = RunState.new(question, limits)
                     run.mode = mode
                     run.model_name = model_name
