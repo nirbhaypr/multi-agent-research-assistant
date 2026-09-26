@@ -318,34 +318,36 @@ class ResearchWorkflow:
             return {
                 "report": run.report.model_dump(mode="json") if run.report else None
             }
-        # A deterministic fallback can present already accepted claims without new spending.
-        accepted = [f for f in run.findings if f.id in run.accepted_ids]
-        if not run.report and accepted:
-            run.writer_fallback = True
-            run.report = ResearchReport(
-                title="Supported research findings",
-                claims=[
-                    ReportClaim(text=f.claim, finding_ids=[f.id]) for f in accepted
-                ],
-            )
-        if run.report:
-            validate_report_citations(run.report, accepted)
-        if run.plan:
-            for sq in run.plan.subquestions:
-                if sq.id not in run.reviews:
-                    run.gaps.setdefault(sq.id, [sq.completion_criteria])
-        run.status = (
-            "timed_out"
-            if run.stop_reason == "deadline"
-            else "failed"
-            if not run.report
-            else "partial"
-            if run.stop_reason or any(run.gaps.values()) or run.writer_fallback
-            else "completed"
+        return finalize_run(run)
+
+
+def finalize_run(run: RunState) -> dict:
+    # A deterministic fallback can present already accepted claims without new spending.
+    accepted = [f for f in run.findings if f.id in run.accepted_ids]
+    if not run.report and accepted:
+        run.writer_fallback = True
+        run.report = ResearchReport(
+            title="Supported research findings",
+            claims=[ReportClaim(text=f.claim, finding_ids=[f.id]) for f in accepted],
         )
-        run.report_markdown = render_report(run)
-        run.next_node = "done"
-        return {
-            "status": run.status,
-            "report": run.report.model_dump(mode="json") if run.report else None,
-        }
+    if run.report:
+        validate_report_citations(run.report, accepted)
+    if run.plan:
+        for sq in run.plan.subquestions:
+            if sq.id not in run.reviews:
+                run.gaps.setdefault(sq.id, [sq.completion_criteria])
+    run.status = (
+        "timed_out"
+        if run.stop_reason == "deadline"
+        else "failed"
+        if not run.report
+        else "partial"
+        if run.stop_reason or any(run.gaps.values()) or run.writer_fallback
+        else "completed"
+    )
+    run.report_markdown = render_report(run)
+    run.next_node = "done"
+    return {
+        "status": run.status,
+        "report": run.report.model_dump(mode="json") if run.report else None,
+    }

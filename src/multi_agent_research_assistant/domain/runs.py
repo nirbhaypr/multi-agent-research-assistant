@@ -63,6 +63,8 @@ class RunState(BaseModel):
     model_config = ConfigDict(extra="forbid")
     run_id: str = Field(default_factory=lambda: uuid4().hex)
     question: str = Field(min_length=1, max_length=4000)
+    mode: Literal["live", "demo"] = "live"
+    model_name: str = "gpt-5.4-mini"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     deadline: float
     limits: RunLimits
