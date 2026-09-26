@@ -1,0 +1,15 @@
+{
+  "run_id": "77d650b754ec480e9bf861430a872865",
+  "mode": "demo",
+  "synthetic_sources": true,
+  "status": "completed",
+  "elapsed_seconds": 1.644,
+  "budget": {
+    "max_total_tokens": 24000,
+    "recorded_tokens": 560,
+    "reserved_tokens": 0,
+    "blocked_reason": null
+  },
+  "report": "# Synthetic run retention policy\n\n- Completed runs are normally retained for seven days. [finding_59abbea0716741208be0d51888354f4d](https://example.com/fixtures/retention)\n- Failed runs are retained for thirty days unless an administrator deletes them earlier. [finding_2b107af8d074475e850e77818663825e](https://example.com/fixtures/retention)",
+  "trace_steps": 7
+}

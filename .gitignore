@@ -17,3 +17,9 @@ PROGRESS.md
 .env
 .env.*
 !.env.example
+
+# Local checks
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

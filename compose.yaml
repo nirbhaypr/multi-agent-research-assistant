@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: redis:8-alpine
+    command: redis-server --appendonly yes --appendfsync always
+    volumes:
+      - research-redis:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 1s
+      retries: 20
+    restart: unless-stopped
+  api:
+    build: .
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RESEARCH_MODE: ${RESEARCH_MODE:-live}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  worker:
+    build: .
+    command: ["multi-agent-research-assistant", "worker"]
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RESEARCH_MODE: ${RESEARCH_MODE:-live}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  research-redis:
+
