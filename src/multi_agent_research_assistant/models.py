@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict, AwareDatetime, HttpUrl
-from typing import Literal
+from typing import Annotated, Literal
 
 class SubQuestion(BaseModel):
     model_config = ConfigDict(
@@ -104,3 +104,15 @@ class TokenUsage(BaseModel):
     input_tokens: int = Field(ge=0)
     output_tokens: int = Field(ge=0)
     total_tokens: int = Field(ge=0)
+
+
+class ResearchReview(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True
+    )
+
+    status: Literal["sufficient", "insufficient"]
+    accepted_finding_ids: list[str]
+    gaps: list[Annotated[str, Field(min_length=1)]]
+    reason: str = Field(min_length=1)
