@@ -401,22 +401,28 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "langchain-openai" },
+    { name = "openai" },
     { name = "pydantic" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "httpx" },
     { name = "pytest" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "langchain-openai", specifier = ">=1.6.6" },
+    { name = "openai", specifier = ">=3.19.2" },
     { name = "pydantic", specifier = ">=2.13.5" },
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.1.1" }]
+dev = [
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "pytest", specifier = ">=9.1.1" },
+]
 
 [[package]]
 name = "openai"
