@@ -1,5 +1,6 @@
 import time
 
+import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
 from multi_agent_research_assistant.demo import DemoModel, DemoRetriever
@@ -128,3 +129,58 @@ def test_trace_contains_prompt_schema_parsed_output_and_usage():
     assert event["output"]["parsed"]["question"] == run.question
     assert event["usage"][0]["total_tokens"] == 140
     assert event["latency_ms"] >= 0
+
+
+@pytest.mark.parametrize(
+    ("partial", "all_invalid", "status", "claim_count", "revisions"),
+    [
+        (False, False, "completed", 2, 0),
+        (True, False, "partial", 1, 1),
+        (False, True, "failed", 0, 1),
+    ],
+)
+def test_invalid_excerpts_are_traced_and_valid_findings_reach_review_and_writer(
+    partial, all_invalid, status, claim_count, revisions
+):
+    calls = []
+    journal = MemoryJournal()
+
+    class MixedEvidenceModel(DemoModel):
+        def invoke(self, **kwargs):
+            result = super().invoke(**kwargs)
+            if kwargs["schema"].__name__ == "ResearchDraft":
+                invalid = result.findings[0].model_copy(
+                    update={"snippet": "Completed runs ... seven days."}
+                )
+                result.findings = [invalid] + ([] if all_invalid else result.findings)
+            return result
+
+    workflow = ResearchWorkflow(
+        model_factory=lambda budget, deadline, on_budget: MixedEvidenceModel(
+            budget, deadline, on_budget, calls=calls, partial=partial
+        ),
+        retriever=DemoRetriever(partial=partial),
+        journal=journal,
+    )
+    run = RunState.new("How long are completed and failed runs retained?", RunLimits())
+    result = RunState.model_validate(
+        workflow.build().invoke({"run": run.model_dump(mode="json")})["run"]
+    )
+
+    assert result.status == status
+    assert len(result.report.claims if result.report else []) == claim_count
+    assert result.revisions_used == revisions
+    assert calls.count("ResearchDraft") == 1 + revisions
+    assert result.budget.recorded_tokens == 140 * len(calls)
+    traces = [r["trace"] for r in journal.records.values()]
+    assert all(t["error"] is None for t in traces)
+    assert "reviewer" in [t["agent"] for t in traces]
+    for trace in (t for t in traces if t["agent"] == "researcher"):
+        rejection = trace["produced"]["rejected_findings"][0]
+        assert rejection == {
+            "draft_index": 0,
+            "source_id": trace["received"]["sources"][0]["id"],
+            "reason": "snippet_not_in_source",
+        }
+    assert all("..." not in f.snippet for f in result.findings)
+    assert "researcher failed" not in result.report_markdown

@@ -37,12 +37,34 @@ This run used a 4,000-token allowance, a 600-token output cap, and a 45-second d
 Earlier specialist smoke observations are preserved in the local teaching progress log.
 They used synthetic evidence with a real model; they did not fetch webpages.
 
+## Researcher failure regression — 2026-09-27
+
+A user-run live request completed search/extraction and all three Researcher model
+calls, but each pass failed during excerpt validation. The recorded drafts included
+ellipses joining passages, altered punctuation/control characters, and an excerpt
+assigned to a different supplied source. One invalid draft discarded each whole batch.
+
+Replaying the captured Researcher inputs and parsed outputs locally reproduced all
+three failures without provider calls. After the fix, the same outputs preserve
+5, 2, and 3 provenance-valid findings respectively, and record 4, 8, and 4 rejections.
+This verifies recovery of valid drafts; their relevance and claim support still need
+Reviewer assessment. The original terminal run remains an unchanged audit record.
+
+The updated offline suite passes **147 tests**, with **5 real-Redis integration tests
+skipped**. New regression coverage includes mixed valid/invalid drafts, mismatched
+source IDs, all-invalid results, graph routing through Reviewer/Writer, one bounded
+revision, unchanged usage accounting, and rejection details in the step trace.
+The prompt now requests short contiguous quotations and sends Unicode punctuation
+directly rather than JSON ASCII escapes. No fresh live run was made for this fix,
+so the effect of the prompt change on generation quality has not been measured.
+
 ## Remaining external verification
 
-The full Tavily + OpenAI live pipeline has not yet been verified in this environment:
-`TAVILY_API_KEY` was not configured when implementation verification began.
+Successful completion of the full Tavily + OpenAI live pipeline remains unverified:
+the key was absent at initial verification, and the later live run exposed the
+Researcher failure described above.
 The Tavily adapter is tested against the documented HTTP contract and explicit failure
-fixtures. Add the key locally and run:
+fixtures. With both keys configured, restart the worker with the fix and run:
 
 ```bash
 uv run python -m multi_agent_research_assistant.smoke.smoke_pipeline
@@ -54,4 +76,3 @@ whether the evidence supports the resulting claims.
 
 Synthetic completion and a live Planner success do not establish live end-to-end
 answer quality or latency. No result is described as independently verified truth.
-

@@ -94,6 +94,19 @@ class ResearchDraft(BaseModel):
     findings: list[FindingDraft]
 
 
+EvidenceRejectionReason = Literal["unknown_source", "snippet_not_in_source"]
+
+
+class RejectedFinding(BaseModel):
+    """A draft rejected by provenance checks; indices refer to ResearchDraft.findings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    draft_index: int = Field(ge=0)
+    source_id: str = Field(min_length=1)
+    reason: EvidenceRejectionReason
+
+
 class ResearchResult(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -103,6 +116,7 @@ class ResearchResult(BaseModel):
     subquestion_id: str = Field(min_length=1)
     status: Literal["findings_found", "no_evidence"]
     findings: list[Finding]
+    rejected_findings: list[RejectedFinding] = Field(default_factory=list)
 
 
 class TokenUsage(BaseModel):

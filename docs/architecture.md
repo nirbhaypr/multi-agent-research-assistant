@@ -9,6 +9,17 @@ accepted IDs and explicit gaps. Writer returns a ResearchReport whose claims cit
 accepted finding IDs. All use the StructuredModel interface; deployed calls use
 BudgetedModel, while isolated smoke tests may use the unbudgeted LangChain adapter.
 
+Researcher validates each draft independently. Unknown source IDs and excerpts absent
+from the named source are rejected; valid drafts still reach Reviewer. The exact
+substring check normalizes whitespace only. It does not repair quotations, remove
+ellipses, or infer a different source. ResearchResult includes `rejected_findings`
+with a zero-based draft index, source ID, and reason (`unknown_source` or
+`snippet_not_in_source`). These appear in the Researcher trace's `produced` object;
+the original drafts remain in the structured-model tool output. If every draft is
+rejected, the result is `no_evidence`, allowing the normal bounded review/revision
+path. Token usage is retained even when no draft passes validation. Duplicate source
+IDs and unexpected internal/provider errors remain failures.
+
 ## Budget admission
 
 1. Reject a blocked ledger or an outstanding reservation.
@@ -117,4 +128,3 @@ authorization would be required for a shared service.
 - [OpenAI token counting](https://developers.openai.com/api/docs/guides/token-counting)
 - [Tavily Search](https://docs.tavily.com/documentation/api-reference/endpoint/search)
 - [Tavily Extract](https://docs.tavily.com/documentation/api-reference/endpoint/extract)
-

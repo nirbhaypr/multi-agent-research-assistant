@@ -1,11 +1,20 @@
 from uuid import uuid4
 
 from multi_agent_research_assistant.domain.models import (
+    EvidenceRejectionReason,
     Finding,
     FindingDraft,
     SourceDocument,
     SubQuestion,
 )
+
+
+class EvidenceValidationError(ValueError):
+    """Expected rejection of one generated draft, distinct from internal failures."""
+
+    def __init__(self, reason: EvidenceRejectionReason, message: str):
+        self.reason = reason
+        super().__init__(message)
 
 
 def _normalize_whitespace(text: str) -> str:
@@ -27,13 +36,17 @@ def build_findings(
         source = sources_by_id.get(draft.source_id)
 
         if source is None:
-            raise (ValueError(f"Unknown source ID: {draft.source_id}"))
+            raise EvidenceValidationError(
+                "unknown_source", f"Unknown source ID: {draft.source_id}"
+            )
 
         snippet = _normalize_whitespace(draft.snippet)
         source_text = _normalize_whitespace(source.text)
 
         if snippet not in source_text:
-            raise ValueError(f"Snippet not found in source {source.id}")
+            raise EvidenceValidationError(
+                "snippet_not_in_source", f"Snippet not found in source {source.id}"
+            )
 
         findings.append(
             Finding(
