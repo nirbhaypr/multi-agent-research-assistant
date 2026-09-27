@@ -207,23 +207,3 @@ The full pipeline check uses one subquestion, one search, a 12,000-token cap, an
 
 See [verification results](docs/verification.md) and [interview practice](docs/interview.md).
 
-## Limits and next steps
-
-Schema validation and matching snippets establish structure and provenance, not
-truth. Reviewer and Writer judgments remain probabilistic. Citation-ID validation
-does not prove semantic entailment. This project does not independently adjudicate
-source credibility or contradictions.
-
-The service uses sequential research, synchronous Redis checkpoints, one Redis
-instance, and a process per active run. Traces contain user questions and source
-text and expire with run data after seven days by default. Redis should remain
-private, be backed up, and use an appropriate managed durability configuration
-before broader deployment.
-
-Optional future work: parallel research with atomic budget reservations, contradiction
-detection, human approval, and multi-user authentication. These are separate from the
-completed required phases.
-
-Resume description: Built a multi-agent research service with a LangGraph supervisor,
-durable Redis checkpoints, token and search caps, cited reports, and step-level
-tracing; verified worker recovery with process-kill integration tests.
