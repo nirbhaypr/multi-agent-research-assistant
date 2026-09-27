@@ -9,10 +9,6 @@ wheels/
 # Virtual environments
 .venv
 
-# Agent Files
-AGENTS.md
-PROGRESS.md
-
 # Local environment configuration
 .env
 .env.*
