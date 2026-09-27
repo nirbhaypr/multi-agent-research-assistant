@@ -1,5 +1,3 @@
-"""Sequential LangGraph workflow with explicit supervisor decisions."""
-
 import time
 from datetime import UTC, datetime
 from typing import Callable, Protocol, TypedDict

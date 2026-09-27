@@ -1,5 +1,3 @@
-"""Redis run queue, fenced ownership, atomic step completion, and idempotency."""
-
 import hashlib
 import json
 import time

@@ -1,5 +1,3 @@
-"""One bounded live end-to-end run using configured Redis and provider keys."""
-
 import json
 import time
 

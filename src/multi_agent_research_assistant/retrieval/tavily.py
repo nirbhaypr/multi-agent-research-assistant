@@ -1,5 +1,3 @@
-"""Search discovers URLs; only separately extracted pages become evidence."""
-
 import ipaddress
 import time
 from datetime import UTC, datetime

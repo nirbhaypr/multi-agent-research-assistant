@@ -1,5 +1,3 @@
-"""One bounded live Planner call; prints no credentials."""
-
 import json
 import time
 
